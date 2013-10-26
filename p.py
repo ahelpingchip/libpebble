@@ -137,6 +137,63 @@ def cmd_keynote(pebble, args):
     except KeyboardInterrupt:
         return
 
+def cmd_keynote6(pebble, args):
+    def do_oscacript(command):
+        cmd = "osascript -e '"+command+"'"
+        try:
+            return subprocess.check_output(cmd, shell=True)
+        except subprocess.CalledProcessError:
+            print "Failed to send message to Keynote, is it running?"
+            return False
+
+    def music_control_handler(endpoint, resp):
+        events = {
+            "PLAYPAUSE": """
+                        tell application "System Events" 
+                            tell application "Keynote" to activate
+                            key code 35 using {command down, option down}
+                        end tell
+                        """,
+            "PREVIOUS": """
+                        tell application "System Events" 
+                            tell application "Keynote" 
+                                activate
+                                show previous
+                            end tell
+                        end tell
+                        """,
+            "NEXT": """
+                        tell application "System Events" 
+                            tell application "Keynote" 
+                                activate
+                                show next
+                            end tell
+                        end tell
+                        """
+        }
+        do_oscacript(events[resp])
+        update_metadata()
+
+    def update_metadata():
+        artist = ""
+        title = "Keynote 6 connected"
+        album = "slide info unavailable"
+
+        if not artist or not title or not album:
+            pebble.set_nowplaying_metadata("Keynote Not Connected", "", "")
+        else:
+            pebble.set_nowplaying_metadata(title, album, artist)
+
+    pebble.register_endpoint("MUSIC_CONTROL", music_control_handler)
+
+    print 'waiting for music control events'
+    try:
+        while True:
+            update_metadata()
+            time.sleep(100)
+    except KeyboardInterrupt:
+        return
+
 def cmd_logcat(pebble, args):
     print 'listening for logs...'
     try:
@@ -292,6 +349,9 @@ def main():
 
     keynote_parser = subparsers.add_parser('keynote', help='control keynote \'09 on a Mac using Pebble')
     keynote_parser.set_defaults(func=cmd_keynote)
+
+    keynote6_parser = subparsers.add_parser('keynote6', help='control keynote 6 on a Mac using Pebble')
+    keynote6_parser.set_defaults(func=cmd_keynote6)
 
     args = parser.parse_args()
 
