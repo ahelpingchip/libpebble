@@ -74,6 +74,69 @@ def cmd_remote(pebble, args):
     except KeyboardInterrupt:
         return
 
+def cmd_keynote(pebble, args):
+    def do_oscacript(command):
+        cmd = "osascript -e '"+command+"'"
+        try:
+            return subprocess.check_output(cmd, shell=True)
+        except subprocess.CalledProcessError:
+            print "Failed to send message to Keynote, is it running?"
+            return False
+
+    def music_control_handler(endpoint, resp):
+        events = {
+            "PLAYPAUSE": """
+                            tell application "Keynote"
+                                if playing then
+                                    stop slideshow
+                                else
+                                    start
+                                end if
+                            end tell
+                        """,
+            "PREVIOUS": """
+                            tell application "Keynote" 
+                                activate
+                                show previous
+                            end tell
+                        """,
+            "NEXT": """
+                            tell application "Keynote" 
+                                activate
+                                show next
+                            end tell
+                        """
+        }
+        do_oscacript(events[resp])
+        update_metadata()
+
+    def update_metadata():
+        getSlide = """
+                tell application "Keynote" 
+                    tell slideshow 1
+                        get current slide
+                    end tell
+                end tell
+                """
+        artist = do_oscacript(getSlide)
+        title = do_oscacript(getSlide)
+        album = do_oscacript(getSlide)
+
+        if not artist or not title or not album:
+            pebble.set_nowplaying_metadata("Keynote Not Connected", "", "")
+        else:
+            pebble.set_nowplaying_metadata(title, album, artist)
+
+    pebble.register_endpoint("MUSIC_CONTROL", music_control_handler)
+
+    print 'waiting for music control events'
+    try:
+        while True:
+            update_metadata()
+            time.sleep(100)
+    except KeyboardInterrupt:
+        return
+
 def cmd_logcat(pebble, args):
     print 'listening for logs...'
     try:
@@ -227,6 +290,8 @@ def main():
     remote_parser.add_argument('app_name', type=str, help='title of application to be controlled')
     remote_parser.set_defaults(func=cmd_remote)
 
+    keynote_parser = subparsers.add_parser('keynote', help='control keynote \'09 on a Mac using Pebble')
+    keynote_parser.set_defaults(func=cmd_keynote)
 
     args = parser.parse_args()
 
