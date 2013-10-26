@@ -118,6 +118,7 @@ The following are currently supported:
 * Setting the currently playing track
 * Getting the installed firmware version
 * Getting and setting the pebble's time
+* Controlling Keynote presentations on a Mac
 
 REPL
 ----
